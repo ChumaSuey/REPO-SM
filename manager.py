@@ -2,6 +2,7 @@ import os
 import shutil
 import pathlib
 import json
+import sys
 import parser
 
 # Terminology:
@@ -11,10 +12,20 @@ import parser
 DEFAULT_LOCAL_BACKUP_FOLDER = "REPO Local backup"
 CONFIG_FILE = "config.json"
 
+def get_base_path():
+    """
+    Returns the base path of the application.
+    If frozen (exe), returns the directory of the executable.
+    If script, returns the directory of the script.
+    """
+    if getattr(sys, 'frozen', False):
+        return pathlib.Path(os.path.dirname(sys.executable))
+    else:
+        return pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
+
 def get_config_path():
-    """Returns the path to the config file in the script directory."""
-    script_dir = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
-    return script_dir / CONFIG_FILE
+    """Returns the path to the config file in the base directory."""
+    return get_base_path() / CONFIG_FILE
 
 def load_config():
     """Loads the configuration from config.json."""
@@ -48,9 +59,8 @@ def get_local_backup_path():
     if custom_path:
         backup_path = pathlib.Path(custom_path)
     else:
-        # Get the directory where this script is located
-        script_dir = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
-        backup_path = script_dir / DEFAULT_LOCAL_BACKUP_FOLDER
+        # Use base path (exe or script dir)
+        backup_path = get_base_path() / DEFAULT_LOCAL_BACKUP_FOLDER
     
     if not backup_path.exists():
         try:
