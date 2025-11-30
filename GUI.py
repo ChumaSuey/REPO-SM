@@ -10,7 +10,7 @@ class RepoSaveManagerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("R.E.P.O Save Manager")
-        self.root.geometry("800x600")
+        self.root.geometry("900x600")
         
         # Configure style
         # self.style = ttk.Style()
@@ -64,6 +64,9 @@ class RepoSaveManagerApp:
         
         self.restore_btn = ttk.Button(self.buttons_frame, text="Restore (Local -> REPO)", command=self.restore_action)
         self.restore_btn.pack(side=tk.LEFT, padx=5)
+
+        self.toggle_btn = ttk.Button(self.buttons_frame, text="Toggle State", command=self.toggle_state_action)
+        self.toggle_btn.pack(side=tk.LEFT, padx=5)
         
         self.change_local_btn = ttk.Button(self.buttons_frame, text="Change Local", command=self.settings_action)
         self.change_local_btn.pack(side=tk.RIGHT, padx=5)
@@ -128,6 +131,29 @@ class RepoSaveManagerApp:
                 self.refresh_lists()
             else:
                 messagebox.showerror("Error", "Restore failed. Check console/logs for details.")
+
+    def toggle_state_action(self):
+        # Get selected item from Local list
+        selection = self.local_list.curselection()
+        if not selection:
+            messagebox.showwarning("Selection", "Please select a backup from the Local Backups list to toggle.")
+            return
+            
+        backup_name = self.local_list.get(selection[0])
+        backup_path = manager.get_local_backup_path() / backup_name
+        
+        # Determine target state
+        # If it currently ends with "_backup", we want to ENABLE it (Active=True)
+        # If it does NOT end with "_backup", we want to DISABLE it (Active=False)
+        target_active = backup_name.endswith("_backup")
+        
+        new_path = manager.set_backup_state(backup_path, active=target_active)
+        
+        if new_path.name != backup_name:
+            # messagebox.showinfo("Success", f"Toggled state.\nOld: {backup_name}\nNew: {new_path.name}")
+            self.refresh_lists()
+        else:
+            messagebox.showwarning("No Change", "State was not changed (maybe it was already in the desired state?).")
 
     def settings_action(self):
         current_path = manager.get_local_backup_path()
