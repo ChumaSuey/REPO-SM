@@ -164,6 +164,7 @@ class RepoSaveManagerApp:
             self.refresh_lists()
 
 if __name__ == "__main__":
+    manager.setup_logging()
     root = tk.Tk()
     app = RepoSaveManagerApp(root)
     root.mainloop()

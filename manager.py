@@ -3,6 +3,7 @@ import shutil
 import pathlib
 import json
 import sys
+import logging
 import parser
 
 # Terminology:
@@ -11,6 +12,18 @@ import parser
 
 DEFAULT_LOCAL_BACKUP_FOLDER = "REPO Local backup"
 CONFIG_FILE = "config.json"
+LOG_FILE = "app.log"
+
+def setup_logging():
+    """Configures logging to file and console."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(get_base_path() / LOG_FILE),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
 
 def get_base_path():
     """
@@ -35,7 +48,7 @@ def load_config():
             with open(config_path, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error loading config: {e}")
+            logging.error(f"Error loading config: {e}")
     return {}
 
 def save_config(config):
@@ -45,7 +58,7 @@ def save_config(config):
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=4)
     except Exception as e:
-        print(f"Error saving config: {e}")
+        logging.error(f"Error saving config: {e}")
 
 def get_local_backup_path():
     """
@@ -66,7 +79,7 @@ def get_local_backup_path():
         try:
             backup_path.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(f"Error creating backup directory at {backup_path}: {e}")
+            logging.error(f"Error creating backup directory at {backup_path}: {e}")
             # Fallback to default if custom fails? For now just return it and let caller handle error
         
     return backup_path
@@ -80,7 +93,7 @@ def set_local_backup_path(new_path):
     config = load_config()
     config["local_backup_path"] = str(new_path)
     save_config(config)
-    print(f"Local backup path set to: {new_path}")
+    logging.info(f"Local backup path set to: {new_path}")
 
 def total_backup(backup_name):
     """
@@ -89,21 +102,21 @@ def total_backup(backup_name):
     """
     source_path = parser.get_save_path()
     if not source_path:
-        print("Error: Could not locate R.E.P.O save folder.")
+        logging.error("Error: Could not locate R.E.P.O save folder.")
         return False
     
     dest_path = get_local_backup_path() / backup_name
     
     if dest_path.exists():
-        print(f"Warning: Backup '{backup_name}' already exists. Overwriting...")
+        logging.warning(f"Backup '{backup_name}' already exists. Overwriting...")
         shutil.rmtree(dest_path)
         
     try:
         shutil.copytree(source_path, dest_path)
-        print(f"Successfully backed up saves to '{backup_name}'")
+        logging.info(f"Successfully backed up saves to '{backup_name}'")
         return True
     except Exception as e:
-        print(f"Error backing up saves: {e}")
+        logging.error(f"Error backing up saves: {e}")
         return False
 
 def restore_saves(backup_name):
@@ -114,33 +127,52 @@ def restore_saves(backup_name):
     backup_path = get_local_backup_path() / backup_name
     
     if not backup_path.exists():
-        print(f"Error: Backup '{backup_name}' not found.")
+        logging.error(f"Error: Backup '{backup_name}' not found.")
         return False
         
     target_path = parser.get_save_path()
-    # If target path is None (folder doesn't exist yet), we need to construct it manually
-    # based on the parser's logic, but parser.get_save_path() returns None if it doesn't exist.
-    # We might need to modify parser or handle it here. 
-    # For now, let's assume we can reconstruct it or parser needs to be robust.
-    # Actually, if the game was never run, the folder might not exist.
-    # Let's rely on parser.SAVE_PATH_SUFFIX for reconstruction if needed.
     
     if not target_path:
         # Try to construct it manually if get_save_path fails (e.g. folder deleted)
         user_home = pathlib.Path(os.path.expanduser("~"))
         target_path = user_home / parser.SAVE_PATH_SUFFIX
     
+    temp_backup_path = None
+    
+    # --- SAFE RESTORE MECHANISM ---
     try:
         if target_path.exists():
-            # Safety: maybe backup current state before restoring? 
-            # For now, just clear it as per plan.
+            # Create a temporary backup of the current state before wiping it
+            temp_backup_path = target_path.parent / (target_path.name + "_TEMP_RESTORE_BACKUP")
+            if temp_backup_path.exists():
+                shutil.rmtree(temp_backup_path)
+            shutil.copytree(target_path, temp_backup_path)
+            
             shutil.rmtree(target_path)
             
         shutil.copytree(backup_path, target_path)
-        print(f"Successfully restored saves from '{backup_name}'")
+        
+        # If successful, remove the temp backup
+        if temp_backup_path and temp_backup_path.exists():
+            shutil.rmtree(temp_backup_path)
+            
+        logging.info(f"Successfully restored saves from '{backup_name}'")
         return True
+        
     except Exception as e:
-        print(f"Error restoring saves: {e}")
+        logging.critical(f"CRITICAL ERROR during restore: {e}")
+        # Attempt to rollback from temp backup
+        if temp_backup_path and temp_backup_path.exists():
+            logging.info("Attempting to rollback changes...")
+            if target_path.exists():
+                 shutil.rmtree(target_path)
+            try:
+                shutil.copytree(temp_backup_path, target_path)
+                logging.info("Rollback successful. Original state restored.")
+                shutil.rmtree(temp_backup_path)
+            except Exception as rollback_error:
+                logging.critical(f"FATAL: Rollback failed! Original saves may be in {temp_backup_path}. Error: {rollback_error}")
+        
         return False
 
 def set_backup_state(target_path, active: bool):
@@ -159,7 +191,7 @@ def set_backup_state(target_path, active: bool):
     target_path = pathlib.Path(target_path)
     
     if not target_path.exists():
-        print(f"Error: Path '{target_path}' does not exist.")
+        logging.error(f"Error: Path '{target_path}' does not exist.")
         return target_path
 
     name = target_path.name
@@ -171,10 +203,10 @@ def set_backup_state(target_path, active: bool):
             new_name = name[:-7] # Remove last 7 chars "_backup"
             new_path = parent / new_name
             target_path.rename(new_path)
-            print(f"State set to ACTIVE: Renamed '{name}' to '{new_name}'")
+            logging.info(f"State set to ACTIVE: Renamed '{name}' to '{new_name}'")
             return new_path
         else:
-            print(f"State is already ACTIVE: '{name}'")
+            logging.info(f"State is already ACTIVE: '{name}'")
             return target_path
     else:
         # We want it INACTIVE (Backup), so ADD "_backup" if NOT present
@@ -182,12 +214,13 @@ def set_backup_state(target_path, active: bool):
             new_name = f"{name}_backup"
             new_path = parent / new_name
             target_path.rename(new_path)
-            print(f"State set to BACKUP (Disabled): Renamed '{name}' to '{new_name}'")
+            logging.info(f"State set to BACKUP (Disabled): Renamed '{name}' to '{new_name}'")
             return new_path
         else:
-            print(f"State is already BACKUP: '{name}'")
+            logging.info(f"State is already BACKUP: '{name}'")
             return target_path
 
 if __name__ == "__main__":
+    setup_logging()
     # Simple manual test interaction
-    print(f"Local backup path: {get_local_backup_path()}")
+    logging.info(f"Local backup path: {get_local_backup_path()}")
