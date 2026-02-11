@@ -3,11 +3,13 @@
 Bienvenido al **R.E.P.O Save Manager**. Esta herramienta te permite gestionar tus partidas guardadas del juego *R.E.P.O* de manera fácil y segura.
 
 ## Introducción
+
 Este programa te ayuda a crear copias de seguridad (backups) de tus partidas, restaurarlas cuando quieras y organizar tus diferentes estados de juego. Es ideal si quieres probar cosas nuevas sin perder tu progreso actual.
 
 ## Instalación y Ejecución
 
 ### Si usas el Ejecutable (.exe)
+
 1. **Descarga** el archivo `REPO-SM.exe` (o el nombre que tenga la versión final).
 2. Colócalo en una carpeta de tu preferencia (por ejemplo, en el Escritorio o en una carpeta de Documentos).
 3. **Ejecuta** el archivo haciendo doble clic.
@@ -19,9 +21,11 @@ Este programa te ayuda a crear copias de seguridad (backups) de tus partidas, re
 La interfaz es muy sencilla y está dividida en dos paneles principales:
 
 ### 1. Panel Izquierdo (Steam/REPO Folder)
+
 Aquí ves los archivos que están **actualmente en el juego**. Estos son los que el juego lee cuando lo inicias.
 
 ### 2. Panel Derecho (Local Backups)
+
 Aquí se guardan tus **copias de seguridad**. Estos archivos están seguros y no se modifican por el juego.
 
 ### Botones y Funciones
@@ -41,6 +45,7 @@ Aquí se guardan tus **copias de seguridad**. Estos archivos están seguros y no
   2. Pulsa "Restore".
   3. Confirma la acción.
   4. **¡Cuidado!** Esto sobrescribirá tu partida actual en el juego con la copia seleccionada.
+  5. **Restauración Segura**: El programa ahora crea una copia temporal de tu partida actual antes de sobreescribirla. Si algo falla durante la restauración, el programa intentará recuperar automáticamente tu partida original para que no pierdas nada.
 
 - **Toggle State (Cambiar Estado)**:
   Sirve para "desactivar" o "activar" backups visualmente.
@@ -54,6 +59,9 @@ Aquí se guardan tus **copias de seguridad**. Estos archivos están seguros y no
 
 - **"REPO Folder Not Found"**:
   Asegúrate de que has instalado el juego y lo has abierto al menos una vez para que se cree la carpeta de guardado original.
+
+- **Revisar Logs**:
+  Si el programa da algún error o no se comporta como debería, revisa el archivo `app.log` que se crea en la misma carpeta del programa. Allí se registra exactamente qué está haciendo el sistema y qué errores técnicos han ocurrido.
 
 - **Errores de Permisos**:
   Si el programa no puede copiar o leer archivos, prueba a ejecutarlo como **Administrador** (clic derecho -> Ejecutar como administrador).
